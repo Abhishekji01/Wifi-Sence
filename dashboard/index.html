@@ -1,0 +1,500 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WiSense live room</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0E1621; --panel:#152233; --panel2:#1B2C42; --line:#2A3E57;
+  --bone:#ECE7D8; --muted:#93A6BB; --signal:#7DB4FF; --ok:#5FD4A0; --warn:#FFB347; --alert:#FF5D4D;
+  --display:'Bricolage Grotesque','Segoe UI',system-ui,sans-serif;
+  --body:'Instrument Sans','Segoe UI',system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0}
+html{color-scheme:dark}
+body{background:var(--ink);color:var(--bone);font:400 16px/1.5 var(--body);min-height:100vh}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:3px solid var(--signal);outline-offset:2px}
+.wrap{max-width:1360px;margin:0 auto;padding:20px 24px 40px}
+header{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding-bottom:18px}
+.brand{font:800 26px/1 var(--display);letter-spacing:-.02em}
+.brand span{color:var(--signal)}
+.tag{color:var(--muted);font-size:15px}
+.sp{flex:1}
+.mode{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border:1px solid var(--line);border-radius:999px;font-weight:600;font-size:14px;background:var(--panel)}
+.mode i{width:9px;height:9px;border-radius:50%;background:var(--warn)}
+.mode.live i{background:var(--ok)}
+.btn{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 14px;font-weight:500;font-size:14px}
+.btn:hover{border-color:var(--signal)}
+.banner{display:none;margin-bottom:14px;padding:14px 18px;border-radius:10px;background:var(--alert);color:#1a0603;font:800 20px/1.2 var(--display)}
+.banner.on{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.banner button{margin-left:auto;background:#1a0603;color:#fff;border:0;border-radius:8px;padding:8px 14px;font-weight:600}
+.hero{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(300px,1fr);gap:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
+.card h2{font:600 15px/1.2 var(--display);color:var(--muted);margin-bottom:10px;letter-spacing:.01em}
+.room{position:relative;padding:0;overflow:hidden}
+.room canvas{display:block;width:100%;aspect-ratio:16/9}
+.room.alert{border-color:var(--alert);box-shadow:0 0 0 2px var(--alert) inset}
+.scen{display:flex;flex-wrap:wrap;gap:8px;padding:12px 16px;border-top:1px solid var(--line);align-items:center}
+.scen b{font-weight:600;color:var(--muted);font-size:14px;margin-right:4px}
+.scen button{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 14px;font-weight:500}
+.scen button[aria-pressed=true]{background:var(--signal);border-color:var(--signal);color:#0a1422;font-weight:600}
+.scen button:disabled{opacity:.45;cursor:not-allowed}
+.read{display:flex;flex-direction:column;gap:14px}
+.state{font:800 clamp(26px,3vw,40px)/1.08 var(--display);letter-spacing:-.02em;min-height:2.2em}
+.rate{display:flex;align-items:baseline;gap:10px}
+.rate .n{font:800 84px/1 var(--display);letter-spacing:-.04em;font-variant-numeric:tabular-nums}
+.rate .u{color:var(--muted);font-size:17px}
+.chips{display:grid;gap:8px}
+.chip{display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel2)}
+.chip i{flex:none;width:12px;height:12px;border-radius:50%;background:#51647c}
+.chip.on i{background:var(--ok)} .chip.warn i{background:var(--warn)} .chip.bad i{background:var(--alert)}
+.chip b{font-weight:600;min-width:84px}
+.chip span{color:var(--muted);font-size:14px}
+.note{color:var(--muted);font-size:13.5px}
+.row{display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:16px;margin-top:16px}
+.plot canvas{display:block;width:100%;height:200px}
+.leg{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin-top:8px}
+.leg i{display:inline-block;width:18px;height:4px;border-radius:2px;vertical-align:middle;margin-right:6px}
+.pipe{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-top:16px}
+.step{position:relative;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--panel);transition:border-color .2s,background .2s}
+.step.hot{border-color:var(--signal);background:var(--panel2)}
+.step.alert{border-color:var(--alert)}
+.step b{display:block;font:600 15px/1.2 var(--display);margin-bottom:4px}
+.step span{display:block;color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums}
+.step:not(:last-child)::after{content:"";position:absolute;right:-9px;top:50%;width:10px;height:2px;background:var(--line)}
+.bot{display:grid;grid-template-columns:1.2fr 1fr;gap:16px;margin-top:16px}
+.log{list-style:none;padding:0;max-height:210px;overflow:auto;font-size:14px}
+.log li{display:flex;gap:12px;padding:6px 0;border-bottom:1px solid var(--line)}
+.log time{color:var(--muted);font-variant-numeric:tabular-nums;flex:none;width:48px}
+.log li.bad{color:var(--alert)} .log li.good{color:var(--ok)}
+dl.p{display:grid;grid-template-columns:auto 1fr;gap:6px 18px;font-size:14px}
+dl.p dt{color:var(--muted)} dl.p dd{font-variant-numeric:tabular-nums}
+footer{margin-top:22px;color:var(--muted);font-size:13.5px;display:flex;flex-wrap:wrap;gap:6px 24px}
+@media (max-width:1000px){.hero,.row,.bot{grid-template-columns:1fr}.pipe{grid-template-columns:repeat(2,1fr)}.step::after{display:none}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="brand">Wi<span>Sense</span></div>
+  <div class="tag">Sensing where cameras fail. No camera, no image, no wearable.</div>
+  <div class="sp"></div>
+  <div class="mode" id="mode" role="status"><i></i><span id="modeTxt">Simulated signal</span></div>
+  <button class="btn" id="btnLive">Connect to ESP32 bridge</button>
+</header>
+
+<div class="banner" id="banner" role="alert"><span>Fall detected. Caregiver alert raised.</span><button id="btnClear">Clear alert</button></div>
+
+<section class="hero">
+  <div class="card room" id="roomCard">
+    <canvas id="room" aria-label="Top view of the room showing the two ESP32 boards, the signal path and the detected person"></canvas>
+    <div class="scen" id="scen" role="group" aria-label="Simulated scenarios">
+      <b>Try a scenario</b>
+      <button data-s="empty" aria-pressed="true">Empty room</button>
+      <button data-s="still" aria-pressed="false">Sitting still</button>
+      <button data-s="breathing" aria-pressed="false">Deep breathing</button>
+      <button data-s="walking" aria-pressed="false">Walking</button>
+      <button data-s="fall" aria-pressed="false">Fall</button>
+    </div>
+  </div>
+  <div class="card read">
+    <div class="state" id="state" aria-live="polite">Learning the empty room…</div>
+    <div class="rate"><span class="n" id="rate">--</span><span class="u">breaths per minute</span></div>
+    <div class="chips">
+      <div class="chip" id="cPres"><i></i><b>Presence</b><span id="tPres">Nobody detected</span></div>
+      <div class="chip" id="cBr"><i></i><b>Breathing</b><span id="tBr">Not detected</span></div>
+      <div class="chip" id="cFall"><i></i><b>Fall</b><span id="tFall">Normal</span></div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn" id="btnCal">Calibrate on empty room</button>
+    </div>
+    <p class="note" id="calNote">The system learns what an empty room looks like first, then flags changes against it. Screening aid, not a medical device.</p>
+  </div>
+</section>
+
+<section class="row">
+  <div class="card plot"><h2>Signal over the last 15 seconds</h2><canvas id="wave" aria-label="Raw and filtered CSI signal"></canvas>
+    <div class="leg"><span><i style="background:#93A6BB"></i>raw amplitude</span><span><i style="background:var(--warn)"></i>glitch removed</span><span><i style="background:var(--signal)"></i>band-passed 0.1 to 0.6 Hz</span></div></div>
+  <div class="card plot"><h2>Frequency spectrum</h2><canvas id="spec" aria-label="Frequency spectrum with breathing band"></canvas>
+    <div class="leg"><span><i style="background:var(--ok)"></i>breathing band 0.2 to 0.5 Hz</span><span><i style="background:var(--warn)"></i>peak</span></div></div>
+  <div class="card plot"><h2>64 sub-carriers, last 12 seconds</h2><canvas id="heat" aria-label="Heatmap of sub-carrier amplitude change over time"></canvas>
+    <div class="leg"><span>Each row is one Wi-Fi sub-carrier. Brighter means the channel changed.</span></div></div>
+</section>
+
+<section class="pipe" id="pipe" aria-label="Processing pipeline">
+  <div class="step" id="p0"><b>Capture</b><span id="s0">waiting</span></div>
+  <div class="step" id="p1"><b>Hampel filter</b><span id="s1">waiting</span></div>
+  <div class="step" id="p2"><b>Band-pass</b><span id="s2">0.1 to 0.6 Hz</span></div>
+  <div class="step" id="p3"><b>FFT</b><span id="s3">waiting</span></div>
+  <div class="step" id="p4"><b>Decision</b><span id="s4">calibrating</span></div>
+  <div class="step" id="p5"><b>Alert</b><span id="s5">idle</span></div>
+</section>
+
+<section class="bot">
+  <div class="card"><h2>Event log</h2><ul class="log" id="log"></ul></div>
+  <div class="card"><h2>How it decides</h2>
+    <dl class="p">
+      <dt>Presence</dt><dd>Signal energy in 0.1 to 0.6 Hz rises well above the empty-room baseline</dd>
+      <dt>Breathing</dt><dd>One clear peak between 0.2 and 0.5 Hz (12 to 30 per minute), rate = 60 × peak frequency</dd>
+      <dt>Fall</dt><dd>A sharp burst of movement, then stillness for several seconds while someone is still present</dd>
+      <dt>Window</dt><dd>20 second sliding window, updated twice a second</dd>
+      <dt>Thresholds</dt><dd>Set from your own empty-room calibration, not hard-coded</dd>
+    </dl>
+  </div>
+</section>
+<footer><span>Screening aid, not a medical device.</span><span id="srcNote">Simulated mode generates a realistic CSI signal in your browser so the demo works anywhere. The detection code is the same for simulated and live data.</span></footer>
+</div>
+
+<script>
+'use strict';
+const FS = 20, N_SC = 64, USABLE = [6, 58];
+const $ = id => document.getElementById(id);
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const median = a => { const b = a.slice().sort((x, y) => x - y); const m = b.length >> 1; return b.length % 2 ? b[m] : (b[m - 1] + b[m]) / 2; };
+
+/* ---------------- state ---------------- */
+const S = {
+  mode: 'sim', scen: 'empty', scenT0: 0, t: 0, startReal: performance.now(),
+  raw: [], clean: [], filt: [], glitch: [],
+  heat: [], ema: new Float32Array(N_SC),
+  bin: { sum: new Float32Array(N_SC), n: 0, t0: null },
+  spec: null, f0: null, ratio: 0, rateEma: null,
+  cal: { on: true, t0: 0, motion: [], band: [], baseMotion: 0.033, baseBand: 0.01, done: false },
+  presence: false, presLast: -99, breathing: false, moving: false,
+  spikeT: -99, fall: false, fallLatched: false, motionRms: 0, bandStd: 0,
+  fHist: [], outliers: 0, outWin: [], pktCount: 0, pktRate: 0, pktT: 0, lastEvt: {}
+};
+window.WS = S;
+const hz = { b1: null, b2: null };
+
+/* ---------------- biquads (Butterworth, RBJ) ---------------- */
+function biquad(type, f0, q = Math.SQRT1_2) {
+  const w = 2 * Math.PI * f0 / FS, c = Math.cos(w), a = Math.sin(w) / (2 * q);
+  let b0, b1, b2;
+  if (type === 'hp') { b0 = (1 + c) / 2; b1 = -(1 + c); b2 = (1 + c) / 2; } else { b0 = (1 - c) / 2; b1 = 1 - c; b2 = (1 - c) / 2; }
+  const a0 = 1 + a, a1 = -2 * c, a2 = 1 - a;
+  return { b0: b0 / a0, b1: b1 / a0, b2: b2 / a0, a1: a1 / a0, a2: a2 / a0, x1: 0, x2: 0, y1: 0, y2: 0, init: false };
+}
+function runBq(q, x) {
+  if (!q.init) { q.x1 = q.x2 = x; q.y1 = q.y2 = (q.b0 + q.b1 + q.b2) / (1 + q.a1 + q.a2) * x; q.init = true; if (q.hpFlag) q.y1 = q.y2 = 0; }
+  const y = q.b0 * x + q.b1 * q.x1 + q.b2 * q.x2 - q.a1 * q.y1 - q.a2 * q.y2;
+  q.x2 = q.x1; q.x1 = x; q.y2 = q.y1; q.y1 = y; return y;
+}
+let HP = biquad('hp', 0.1), LP = biquad('lp', 0.6); HP.hpFlag = true;
+function resetFilters() { HP = biquad('hp', 0.1); HP.hpFlag = true; LP = biquad('lp', 0.6); }
+
+/* ---------------- simulator ---------------- */
+const rnd = (() => { let s = 12345; return () => (s = (s * 1664525 + 1013904223) >>> 0) / 4294967296; })();
+const gauss = () => { let u = 0; for (let i = 0; i < 6; i++) u += rnd(); return (u - 3) * Math.SQRT2; };
+const coup = Array.from({ length: N_SC }, (_, k) => 0.5 + rnd());
+const baseAmp = Array.from({ length: N_SC }, (_, k) => 28 + 6 * Math.sin(k / 9) + 2 * rnd());
+let simClock = 0, simAcc = 0;
+function simTruth(st) { // returns {breath:{A,f}, move:amp, spike:τ|null, pos:{x,y,pose}}
+  const t = st;
+  switch (S.scen) {
+    case 'empty': return { A: 0, f: 0, move: 0, spike: null, pos: null };
+    case 'still': return { A: 0.20, f: 0.27, move: 0, spike: null, pos: { x: .42, y: .62, pose: 'sit' } };
+    case 'breathing': return { A: 0.35, f: 0.30, move: 0, spike: null, pos: { x: .5, y: .5, pose: 'stand' } };
+    case 'walking': return { A: 0.12, f: 0.28, move: 1.6, spike: null, pos: { x: .5 + .28 * Math.sin(.5 * t), y: .5 + .2 * Math.sin(.8 * t + 1), pose: 'stand' } };
+    case 'fall':
+      if (t < 5) return { A: 0.12, f: 0.28, move: 1.6, spike: null, pos: { x: .5 + .28 * Math.sin(.5 * t), y: .5 + .2 * Math.sin(.8 * t + 1), pose: 'stand' } };
+      const fx = .5 + .28 * Math.sin(2.5), fy = .5 + .2 * Math.sin(4 + 1);
+      return { A: 0.10, f: 0.28, move: 0, spike: t < 5.8 ? t - 5 : null, pos: { x: fx, y: fy, pose: 'fallen' } };
+  }
+}
+function simFrame(t, st) {
+  const tr = simTruth(st), amp = new Array(N_SC);
+  const drift = 0.3 * Math.sin(2 * Math.PI * 0.02 * t);
+  let mv = 0;
+  if (tr.move) mv = tr.move * (0.6 * Math.sin(2 * Math.PI * 1.7 * t) + 0.5 * Math.sin(2 * Math.PI * 0.9 * t + 1) + 0.4 * Math.sin(2 * Math.PI * 2.6 * t + 2));
+  if (tr.spike !== null) mv += 14 * Math.exp(-tr.spike / 0.25) * Math.sin(2 * Math.PI * 6 * tr.spike);
+  const br = tr.A * Math.sin(2 * Math.PI * tr.f * t);
+  const glitch = rnd() < 0.002 ? (rnd() < .5 ? -1 : 1) * (4 + 3 * rnd()) : 0;
+  for (let k = 0; k < N_SC; k++) amp[k] = baseAmp[k] + drift + coup[k] * (br + mv) + 0.5 * gauss() + (glitch ? glitch * coup[k] : 0);
+  return amp;
+}
+
+/* ---------------- ingest: frames -> 20 Hz samples ---------------- */
+function ingestFrame(amp, tSec) {
+  S.pktCount++;
+  const b = S.bin;
+  if (b.t0 === null) b.t0 = tSec;
+  for (let k = 0; k < N_SC; k++) b.sum[k] += amp[k];
+  b.n++;
+  if (tSec - b.t0 >= 1 / FS - 1e-6) {
+    const a = new Float32Array(N_SC);
+    for (let k = 0; k < N_SC; k++) a[k] = b.sum[k] / b.n;
+    b.sum.fill(0); b.n = 0; b.t0 += 1 / FS; if (tSec - b.t0 > 1) b.t0 = tSec;
+    onSample(a, tSec);
+  }
+}
+
+let sampleIdx = 0;
+function onSample(a, tSec) {
+  S.t = tSec; sampleIdx++;
+  let m = 0; for (let k = USABLE[0]; k < USABLE[1]; k++) m += a[k]; m /= (USABLE[1] - USABLE[0]);
+  S.raw.push(m);
+  // Hampel (window 7, 3 sigma), judged on the centre sample so only isolated one-sample glitches are removed
+  if (S.raw.length < 7) return;
+  const w = S.raw.slice(-7), c0 = w[3]; let x = c0, g = 0;
+  const med = median(w), mad = 1.4826 * median(w.map(v => Math.abs(v - med))), dev = Math.abs(c0 - med), thr = 3 * Math.max(mad, 0.02) + 0.12;
+  if (dev > thr && Math.abs(w[2] - med) < 0.5 * dev && Math.abs(w[4] - med) < 0.5 * dev) { x = med; g = 1; }
+  S.clean.push(x); S.glitch.push(g); S.outWin.push(g);
+  if (S.outWin.length > FS) S.outWin.shift();
+  S.outliers = S.outWin.reduce((p, c) => p + c, 0);
+  const f = runBq(LP, runBq(HP, x));
+  S.filt.push(f);
+  const cap = 600; for (const arr of [S.raw, S.clean, S.filt, S.glitch]) if (arr.length > cap) arr.shift();
+  // heatmap column every 2 samples
+  for (let k = 0; k < N_SC; k++) S.ema[k] += (a[k] - S.ema[k]) * (S.ema[k] === 0 ? 1 : 0.02);
+  if (sampleIdx % 2 === 0) { const col = new Float32Array(N_SC); for (let k = 0; k < N_SC; k++) col[k] = a[k] - S.ema[k]; S.heat.push(col); if (S.heat.length > 120) S.heat.shift(); }
+  metrics();
+  if (sampleIdx % 10 === 0) { spectrum(); decide(tSec); ui(tSec); }
+  if (sampleIdx % 2 === 0) calStep(tSec);
+}
+
+function metrics() {
+  const c = S.clean, n = c.length;
+  if (n < 12) return;
+  let acc = 0, cnt = 0, pk = 0;
+  for (let i = Math.max(10, n - FS); i < n; i++) { let mu = 0; for (let j = i - 10; j < i; j++) mu += c[j]; mu /= 10; const d = c[i] - mu; acc += d * d; cnt++; if (Math.abs(d) > pk) pk = Math.abs(d); }
+  S.motionRms = Math.sqrt(acc / Math.max(1, cnt)); S.motionPeak = pk;
+  const f = S.filt.slice(-6 * FS); let mu = 0; for (const v of f) mu += v; mu /= f.length;
+  let v = 0; for (const q of f) v += (q - mu) * (q - mu); S.bandStd = Math.sqrt(v / f.length);
+}
+
+function spectrum() {
+  const n = Math.min(S.filt.length, 20 * FS);
+  if (n < 10 * FS) { S.spec = null; return; }
+  const x = S.filt.slice(-n), bins = [], mags = [];
+  for (let f = 0.05; f <= 1.0001; f += 0.01) {
+    let re = 0, im = 0;
+    for (let i = 0; i < n; i++) { const w = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / (n - 1)); const ph = 2 * Math.PI * f * i / FS; re += w * x[i] * Math.cos(ph); im -= w * x[i] * Math.sin(ph); }
+    bins.push(f); mags.push(Math.hypot(re, im) / n * 2);
+  }
+  let pk = -1, pv = 0;
+  for (let i = 0; i < bins.length; i++) if (bins[i] >= 0.2 && bins[i] <= 0.5 && mags[i] > pv) { pv = mags[i]; pk = i; }
+  const med = median(mags);
+  S.spec = { bins, mags, pk, pv };
+  S.f0 = pk >= 0 ? bins[pk] : null;
+  S.ratio = pv / Math.max(med, 1e-6);
+}
+
+/* ---------------- calibration ---------------- */
+function startCal() { S.cal.on = true; S.cal.t0 = S.t; S.cal.motion = []; S.cal.band = []; S.cal.done = false; $('calNote').textContent = 'Calibrating. Keep the room empty for 8 seconds.'; }
+function calStep(t) {
+  const c = S.cal; if (!c.on) return;
+  if (t - c.t0 < 4) return; // let filters settle
+  c.motion.push(S.motionRms); c.band.push(S.bandStd);
+  if (t - c.t0 >= 12) {
+    const avg = a => a.reduce((p, q) => p + q, 0) / a.length;
+    c.baseMotion = Math.max(avg(c.motion), 0.01); c.baseBand = Math.max(avg(c.band), 0.004);
+    c.on = false; c.done = true;
+    $('calNote').textContent = 'Calibrated. Baseline noise ' + c.baseMotion.toFixed(3) + ' (motion), ' + c.baseBand.toFixed(3) + ' (band). Screening aid, not a medical device.';
+    logEvt('Empty room learned. Detection is live.', 'good');
+  }
+}
+
+/* ---------------- decision ---------------- */
+function decide(t) {
+  const c = S.cal; if (c.on) { S.presence = false; S.breathing = false; S.moving = false; return; }
+  const bm = c.baseMotion, bb = c.baseBand;
+  S.moving = S.motionRms > 12 * bm;
+  const trig = S.bandStd > 5 * bb || S.motionRms > 4 * bm;
+  if (trig) S.presLast = t;
+  const pPrev = S.presence;
+  S.presence = t - S.presLast < 4;
+  const still = S.motionRms < 5 * bm;
+  S.breathing = !!(S.spec && S.presence && !S.moving && S.ratio > 3.5 && S.bandStd > 5 * bb);
+  if (S.breathing && S.f0) { S.fHist.push(S.f0 * 60); if (S.fHist.length > 24) S.fHist.shift(); S.rateEma = median(S.fHist); } else if (!S.presence) { S.rateEma = null; S.fHist = []; }
+  // fall: burst, then stillness
+  if (S.motionPeak > 100 * bm && t - S.spikeT > 8) { S.spikeT = t; S.spikeSeen = true; }
+  const since = t - S.spikeT;
+  if (S.spikeSeen && !S.fallLatched) {
+    if (since > 2 && since < 7 && S.moving) S.spikeSeen = false; // kept moving: not a fall
+    else if (since >= 4 && still && S.presence) { S.fallLatched = true; S.spikeSeen = false; evt('fall', 'Fall detected: burst of movement, then no motion', 'bad'); }
+    else if (since >= 7) S.spikeSeen = false;
+  }
+  if (S.fallLatched && S.moving && t - S.fallT0 > 0) { /* stays latched until cleared */ }
+  if (S.fallLatched && !S.fallT0) S.fallT0 = t;
+  if (!S.fallLatched) S.fallT0 = 0;
+  S.fall = S.fallLatched;
+  if (S.presence !== pPrev) evt('pres' + S.presence, S.presence ? 'Someone entered the sensing area' : 'Room is empty again', S.presence ? '' : 'good');
+  if (S.breathing && !S.lastBreath) evt('br', 'Breathing detected, about ' + Math.round(S.rateEma) + ' per minute', 'good');
+  if (!S.breathing && S.lastBreath && S.presence && S.moving) evt('mv', 'Movement masks breathing', '');
+  S.lastBreath = S.breathing;
+}
+function evt(key, text, cls) { if (S.lastEvt[key] && S.t - S.lastEvt[key] < 3) return; S.lastEvt[key] = S.t; logEvt(text, cls); }
+function logEvt(text, cls) {
+  const li = document.createElement('li'); if (cls) li.className = cls;
+  const s = Math.floor(S.t), tm = document.createElement('time'); tm.textContent = String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+  const sp = document.createElement('span'); sp.textContent = text; li.append(tm, sp); $('log').prepend(li);
+  while ($('log').children.length > 60) $('log').lastChild.remove();
+}
+
+/* ---------------- UI ---------------- */
+function setChip(id, cls, txt, tid) { const el = $(id); el.className = 'chip ' + cls; $(tid).textContent = txt; }
+function ui(t) {
+  const c = S.cal;
+  let st;
+  if (c.on) st = 'Learning the empty room…';
+  else if (S.fall) st = 'Fall detected. Someone may need help.';
+  else if (S.presence && S.moving) st = 'Someone is here and moving.';
+  else if (S.presence && S.breathing) st = 'Someone is here, breathing ' + (S.rateEma < 12 ? 'slowly' : S.rateEma > 20 ? 'quickly' : 'steadily') + '.';
+  else if (S.presence) st = 'Someone is here, very still.';
+  else st = 'The room is empty.';
+  $('state').textContent = st;
+  $('rate').textContent = S.breathing && S.rateEma ? Math.round(S.rateEma) : '--';
+  setChip('cPres', c.on ? '' : S.presence ? 'on' : '', c.on ? 'Calibrating' : S.presence ? 'Person in the sensing area' : 'Nobody detected', 'tPres');
+  setChip('cBr', S.breathing ? 'on' : S.presence && S.spec === null ? 'warn' : '', S.breathing ? 'Peak at ' + S.f0.toFixed(2) + ' Hz' : S.spec === null ? 'Warming up, needs 10 s of data' : 'Not detected', 'tBr');
+  setChip('cFall', S.fall ? 'bad' : S.spikeSeen ? 'warn' : 'on', S.fall ? 'Alert raised' : S.spikeSeen ? 'Sharp movement, checking' : 'Normal', 'tFall');
+  $('banner').classList.toggle('on', S.fall); $('roomCard').classList.toggle('alert', S.fall);
+  // pipeline
+  const now = performance.now(); if (now - S.pktT > 1000) { S.pktRate = Math.round(S.pktCount * 1000 / (now - S.pktT)); S.pktCount = 0; S.pktT = now; }
+  $('s0').textContent = '64 sub-carriers, ' + S.pktRate + ' pkt/s';
+  $('s1').textContent = S.outliers + ' glitch' + (S.outliers === 1 ? '' : 'es') + ' removed per second';
+  $('s3').textContent = S.spec ? 'peak ' + (S.f0 ? S.f0.toFixed(2) : '--') + ' Hz' : 'filling 20 s window';
+  $('s4').textContent = c.on ? 'calibrating' : S.fall ? 'fall' : S.moving ? 'moving' : S.presence ? (S.breathing ? 'breathing' : 'still') : 'empty';
+  $('s5').textContent = S.fall ? 'ALERT raised' : 'idle';
+  const hot = { p0: 1, p1: S.outliers > 0, p2: 1, p3: !!S.spec, p4: !c.on && S.presence, p5: S.fall };
+  for (const id in hot) $(id).classList.toggle('hot', !!hot[id]);
+  $('p5').classList.toggle('alert', S.fall);
+}
+
+/* ---------------- drawing ---------------- */
+function fitCanvas(cv) { const r = cv.getBoundingClientRect(), d = Math.min(window.devicePixelRatio || 1, 2); const w = Math.round(r.width * d), h = Math.round(r.height * d); if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; } return { ctx: cv.getContext('2d'), w, h, d }; }
+function drawWave() {
+  const { ctx, w, h, d } = fitCanvas($('wave')); ctx.clearRect(0, 0, w, h);
+  const n = 15 * FS, raw = S.raw.slice(-n), fl = S.filt.slice(-n), gl = S.glitch.slice(-n);
+  if (raw.length < 5) return;
+  const half = h / 2; ctx.font = `${12 * d}px Instrument Sans, sans-serif`; ctx.fillStyle = '#93A6BB';
+  ctx.strokeStyle = '#2A3E57'; ctx.lineWidth = d; ctx.beginPath(); ctx.moveTo(0, half); ctx.lineTo(w, half); ctx.stroke();
+  const draw = (arr, y0, hh, col, lw, flags, minR) => {
+    const lo = Math.min(...arr), hi = Math.max(...arr), mid = (lo + hi) / 2, rg = Math.max(hi - lo, minR);
+    const px = i => (w - arr.length * w / n) + i * w / n, py = v => y0 + hh / 2 - (v - mid) / rg * hh * 0.86;
+    ctx.strokeStyle = col; ctx.lineWidth = lw * d; ctx.beginPath(); arr.forEach((v, i) => i ? ctx.lineTo(px(i), py(v)) : ctx.moveTo(px(i), py(v))); ctx.stroke();
+    if (flags) { ctx.fillStyle = '#FFB347'; arr.forEach((v, i) => { if (flags[i]) { ctx.beginPath(); ctx.arc(px(i), py(v), 5 * d, 0, 7); ctx.fill(); } }); }
+  };
+  draw(raw, 0, half, '#93A6BB', 1.6, gl, 0.4);
+  draw(fl, half, half, '#7DB4FF', 2.6, null, 0.12);
+  ctx.fillStyle = '#93A6BB'; ctx.fillText('raw', 8 * d, 16 * d); ctx.fillText('filtered', 8 * d, half + 16 * d);
+}
+function drawSpec() {
+  const { ctx, w, h, d } = fitCanvas($('spec')); ctx.clearRect(0, 0, w, h);
+  ctx.font = `${12 * d}px Instrument Sans, sans-serif`;
+  const L = 8 * d, R = w - 8 * d, T = 22 * d, B = h - 24 * d, fx = f => L + (f - 0.05) / 0.95 * (R - L);
+  ctx.fillStyle = 'rgba(95,212,160,.14)'; ctx.fillRect(fx(0.2), T, fx(0.5) - fx(0.2), B - T);
+  ctx.fillStyle = '#93A6BB'; ctx.textAlign = 'center';
+  for (const f of [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.8, 1.0]) ctx.fillText(f.toFixed(1), fx(f), h - 7 * d);
+  ctx.textAlign = 'left'; ctx.fillText('Hz', R - 14 * d, T - 8 * d);
+  if (!S.spec) { ctx.fillStyle = '#93A6BB'; ctx.fillText('Filling the 20 second window…', L + 6 * d, (T + B) / 2); return; }
+  const { bins, mags, pk } = S.spec, mx = Math.max(...mags, 0.05), bw = (R - L) / bins.length;
+  bins.forEach((f, i) => { const hh = mags[i] / mx * (B - T); ctx.fillStyle = i === pk && S.breathing ? '#FFB347' : (f >= 0.2 && f <= 0.5 ? '#5FD4A0' : '#4A6382'); ctx.fillRect(fx(f) - bw / 2, B - hh, Math.max(bw - 1, 1), hh); });
+  if (S.breathing && S.f0) { ctx.fillStyle = '#FFB347'; ctx.font = `600 ${13 * d}px Instrument Sans, sans-serif`; ctx.textAlign = fx(S.f0) > w * .7 ? 'right' : 'left'; ctx.fillText(S.f0.toFixed(2) + ' Hz = ' + Math.round(S.f0 * 60) + '/min', fx(S.f0) + (fx(S.f0) > w * .7 ? -8 : 8) * d, T + 12 * d); }
+}
+const heatImg = { cv: document.createElement('canvas') };
+function drawHeat() {
+  const cv = $('heat'), { ctx, w, h } = fitCanvas(cv); ctx.clearRect(0, 0, w, h);
+  const cols = S.heat.length; if (!cols) return;
+  const o = heatImg.cv; o.width = 120; o.height = N_SC; const oc = o.getContext('2d'), im = oc.createImageData(120, N_SC);
+  const off = 120 - cols;
+  for (let x = 0; x < cols; x++) for (let k = 0; k < N_SC; k++) {
+    const v = clamp(Math.abs(S.heat[x][k]) / 1.2, 0, 1), i = ((k) * 120 + x + off) * 4;
+    // dark blue -> signal blue -> bone
+    im.data[i] = 20 + 215 * v * v; im.data[i + 1] = 34 + 190 * v; im.data[i + 2] = 55 + 180 * v; im.data[i + 3] = 255;
+  }
+  oc.putImageData(im, 0, 0); ctx.imageSmoothingEnabled = false; ctx.drawImage(o, 0, 0, w, h);
+}
+function drawRoom(ts) {
+  const { ctx, w, h, d } = fitCanvas($('room')); ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = '#101C2B'; ctx.fillRect(0, 0, w, h);
+  const m = 36 * d, rx = m, ry = m, rw = w - 2 * m, rh = h - 2 * m;
+  ctx.strokeStyle = '#2A3E57'; ctx.lineWidth = 1; for (let x = rx; x < rx + rw; x += 40 * d) { ctx.beginPath(); ctx.moveTo(x, ry); ctx.lineTo(x, ry + rh); ctx.stroke(); } for (let y = ry; y < ry + rh; y += 40 * d) { ctx.beginPath(); ctx.moveTo(rx, y); ctx.lineTo(rx + rw, y); ctx.stroke(); }
+  ctx.strokeStyle = '#5F7A99'; ctx.lineWidth = 5 * d; ctx.strokeRect(rx, ry, rw, rh);
+  const ty = ry + rh / 2, tx = rx + 70 * d, rxp = rx + rw - 70 * d;
+  const bx = 56 * d, by = 36 * d;
+  // person position
+  let pos = null;
+  if (S.presence) { if (S.mode === 'sim') { const tr = simTruth(S.t - S.scenT0); pos = tr && tr.pos; } if (!pos) pos = { x: .5, y: .5, pose: 'stand' }; }
+  const px = pos ? rx + pos.x * rw : 0, py = pos ? ry + pos.y * rh : 0;
+  // paths
+  ctx.setLineDash([14 * d, 10 * d]); ctx.lineWidth = 3 * d;
+  ctx.strokeStyle = 'rgba(125,180,255,.9)'; ctx.beginPath(); ctx.moveTo(tx + bx, ty); ctx.lineTo(rxp - bx, ty); ctx.stroke();
+  ctx.strokeStyle = 'rgba(95,212,160,.55)';
+  for (const wy of [ry, ry + rh]) { const mx = (tx + rxp) / 2; ctx.beginPath(); ctx.moveTo(tx + bx, ty); ctx.lineTo(mx, wy); ctx.lineTo(rxp - bx, ty); ctx.stroke(); }
+  if (pos) { ctx.strokeStyle = 'rgba(255,179,71,.95)'; ctx.beginPath(); ctx.moveTo(tx + bx, ty); ctx.lineTo(px, py); ctx.lineTo(rxp - bx, ty); ctx.stroke(); }
+  ctx.setLineDash([]);
+  // boards
+  const board = (x, label, col) => { ctx.fillStyle = '#0E1621'; ctx.strokeStyle = col; ctx.lineWidth = 4 * d; ctx.fillRect(x - bx, ty - by, 2 * bx, 2 * by); ctx.strokeRect(x - bx, ty - by, 2 * bx, 2 * by); ctx.fillStyle = col; ctx.font = `800 ${20 * d}px Bricolage Grotesque, sans-serif`; ctx.textAlign = 'center'; ctx.fillText(label, x, ty + 7 * d); ctx.font = `500 ${13 * d}px Instrument Sans, sans-serif`; ctx.fillStyle = '#93A6BB'; ctx.fillText(label === 'TX' ? 'ESP32 #1 sends packets' : 'ESP32 #2 reads CSI', x, ty + by + 22 * d); };
+  board(tx, 'TX', '#7DB4FF'); board(rxp, 'RX', '#5FD4A0');
+  ctx.textAlign = 'left'; ctx.font = `500 ${13 * d}px Instrument Sans, sans-serif`; ctx.fillStyle = '#93A6BB';
+  ctx.fillText('direct path', tx + bx + 18 * d, ty - 12 * d); ctx.fillText('wall reflections', (tx + rxp) / 2 + 12 * d, ry + 24 * d);
+  if (S.cal.on) { ctx.textAlign = 'center'; ctx.fillStyle = '#FFB347'; ctx.font = `600 ${18 * d}px Bricolage Grotesque, sans-serif`; ctx.fillText('Learning the empty room…', w / 2, ry + rh - 24 * d); }
+  if (pos) {
+    const col = S.fall ? '#FF5D4D' : '#FFB347', ph = S.rateEma && S.breathing ? (ts / 1000) * S.rateEma / 60 : 0;
+    if (S.breathing) for (let i = 0; i < 3; i++) { const p = (ph + i / 3) % 1; ctx.strokeStyle = `rgba(255,179,71,${(1 - p) * .8})`; ctx.lineWidth = 3 * d; ctx.beginPath(); ctx.arc(px, py, (22 + p * 60) * d, 0, 7); ctx.stroke(); }
+    if (S.fall) { ctx.strokeStyle = '#FF5D4D'; ctx.lineWidth = 4 * d; ctx.beginPath(); ctx.arc(px, py, 46 * d, 0, 7); ctx.stroke(); }
+    // pixel-style figure
+    const u = 5 * d; ctx.save(); ctx.translate(px, py); if (pos.pose === 'fallen') ctx.rotate(Math.PI / 2);
+    ctx.fillStyle = '#F3D9B1'; ctx.fillRect(-u, -5 * u, 2 * u, 2 * u); ctx.fillStyle = col; ctx.fillRect(-2 * u, -3 * u, 4 * u, 4 * u);
+    ctx.fillStyle = '#F3D9B1'; ctx.fillRect(-3 * u, -3 * u, u, 3 * u); ctx.fillRect(2 * u, -3 * u, u, 3 * u);
+    ctx.fillStyle = '#3C4F78'; ctx.fillRect(-2 * u, u, 2 * u, 3 * u); ctx.fillRect(0, u, 2 * u, 3 * u); ctx.restore();
+  }
+}
+
+/* ---------------- scenarios / modes ---------------- */
+function setScen(s) {
+  S.scen = s; S.scenT0 = S.t;
+  if (s !== 'fall') { S.fallLatched = false; S.spikeSeen = false; }
+  document.querySelectorAll('#scen button').forEach(b => b.setAttribute('aria-pressed', b.dataset.s === s));
+  logEvt('Scenario: ' + { empty: 'empty room', still: 'sitting still', breathing: 'deep breathing', walking: 'walking', fall: 'fall' }[s], '');
+}
+document.querySelectorAll('#scen button').forEach(b => b.onclick = () => { if (S.mode === 'sim') setScen(b.dataset.s); });
+$('btnClear').onclick = () => { S.fallLatched = false; S.spikeSeen = false; S.fallT0 = 0; logEvt('Alert cleared by operator', ''); };
+$('btnCal').onclick = () => { startCal(); };
+
+function setMode(m) {
+  S.mode = m; const live = m === 'live';
+  $('mode').classList.toggle('live', live); $('modeTxt').textContent = live ? 'Live from ESP32' : 'Simulated signal';
+  document.querySelectorAll('#scen button').forEach(b => b.disabled = live);
+  $('btnLive').textContent = live ? 'Back to simulation' : 'Connect to ESP32 bridge';
+  $('srcNote').textContent = live ? 'Live mode: CSI frames arrive from the two ESP32 boards through the bridge script. Calibrate on the empty room first.' : $('srcNote').textContent;
+}
+function resetPipeline() { S.raw = []; S.clean = []; S.filt = []; S.glitch = []; S.heat = []; S.ema.fill(0); S.bin = { sum: new Float32Array(N_SC), n: 0, t0: null }; S.spec = null; S.f0 = null; S.rateEma = null; S.presence = false; S.breathing = false; S.fallLatched = false; S.spikeSeen = false; resetFilters(); sampleIdx = 0; startCal(); }
+let ws = null;
+$('btnLive').onclick = () => {
+  if (S.mode === 'live') { if (ws) ws.close(); return; }
+  const url = new URLSearchParams(location.search).get('ws') || 'ws://localhost:8765';
+  let ok = false;
+  try { ws = new WebSocket(url); } catch (e) { logEvt('Invalid bridge address ' + url, 'bad'); return; }
+  logEvt('Connecting to ' + url + '…', '');
+  ws.onopen = () => { ok = true; S.t = 0; liveT0 = performance.now(); resetPipeline(); setMode('live'); logEvt('Bridge connected. Calibrate on the empty room.', 'good'); };
+  ws.onmessage = ev => { try { const m = JSON.parse(ev.data); if (m.amp && m.amp.length >= N_SC) ingestFrame(m.amp, (performance.now() - liveT0) / 1000); } catch (e) { } };
+  ws.onclose = () => { if (S.mode === 'live') { setMode('sim'); S.t = 0; simClock = 0; S.scenT0 = 0; resetPipeline(); logEvt('Bridge disconnected. Back to simulation.', ''); } else if (!ok) logEvt('Could not reach the bridge at ' + url + '. Start it with: python bridge/bridge.py --port <your serial port>', 'bad'); };
+};
+let liveT0 = 0;
+
+/* ---------------- main loop ---------------- */
+let last = performance.now();
+function tick(ts) {
+  const dt = Math.min((ts - last) / 1000, 0.25); last = ts;
+  if (S.mode === 'sim') {
+    simAcc += dt * 100; // 100 packets per second
+    while (simAcc >= 1) { simAcc -= 1; simClock += 0.01; ingestFrame(simFrame(simClock, simClock - S.scenT0), simClock); }
+  }
+  drawRoom(ts); if (sampleIdx % 2 === 0 || true) { drawWave(); drawSpec(); drawHeat(); }
+  requestAnimationFrame(tick);
+}
+startCal(); logEvt('Started. Learning the empty room.', '');
+requestAnimationFrame(tick);
+/* fast-forward helper for automated tests */
+window.__ff = sec => { const n = Math.round(sec * 100); for (let i = 0; i < n; i++) { simClock += 0.01; ingestFrame(simFrame(simClock, simClock - S.scenT0), simClock); } };
+</script>
+</body>
+</html>
